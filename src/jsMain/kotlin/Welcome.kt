@@ -18,21 +18,38 @@ external interface WelcomeProps : Props {
 private val logger = KotlinLogging.logger {  }
 
 
-val Welcome = FC<WelcomeProps> { props ->
+fun createFunction(): (QueryState) -> String? {
+    return js("function getQueryString(queryResult){ return queryResult.currentQuery;}")
+}
 
-    val lambdaFunctionToAccessTheQueryState = { queryState: QueryState ->
-        queryState.currentQuery
+val Welcome = FC<WelcomeProps> { props ->
+    val accessViaJS = { queryState: QueryState ->
+        js("queryState.currentQuery").unsafeCast<String?>()
     }
 
     logger.info {
-        "It works in the code: ${lambdaFunctionToAccessTheQueryState(QueryState())}"
+        "JS works in the code: ${accessViaJS(QueryState(currentQuery = "Yay, JS!"))}"
     }
 
-    val query = useSelector(lambdaFunctionToAccessTheQueryState)
+    val accessViaKotlin = { queryState: QueryState ->
+        queryState.currentQuery
+    }
 
-    logger.info { "Use selector works: ${query}" }
 
-//    val dispatch = useDispatch<RAction, dynamic>()
+    logger.info {
+        "Kotlin works in the code: ${accessViaKotlin(QueryState(currentQuery = "Yay, Kotlin!"))}"
+    }
+
+
+    val jsSelectorResult1 = useSelector(accessViaJS)
+    logger.info { "JS selector1 works: ${jsSelectorResult1}" }
+
+    val jsSelectorResult2 = useSelector(createFunction())
+    logger.info { "JS selector2 works: ${jsSelectorResult2}" }
+
+
+    val kotlinSelectorResult = useSelector(accessViaKotlin)
+    logger.info { "kotlin selector works: ${kotlinSelectorResult}" }
 
     var name by useState(props.name)
     div {
@@ -41,7 +58,7 @@ val Welcome = FC<WelcomeProps> { props ->
             backgroundColor = rgb(8, 97, 22)
             color = rgb(56, 246, 137)
         }
-        +"Hello, ${name}: ${query ?: "###"}"
+        +"Hello, ${name}: ${kotlinSelectorResult ?: "###"}"
     }
     input {
         css {
@@ -50,8 +67,8 @@ val Welcome = FC<WelcomeProps> { props ->
             fontSize = 14.px
         }
         type = InputType.text
-        if (query != null){
-            value = query
+        if (kotlinSelectorResult != null){
+            value = kotlinSelectorResult
         }
 //        onChange = { event ->
 //            dispatch(SetQuery(event.target.value))
